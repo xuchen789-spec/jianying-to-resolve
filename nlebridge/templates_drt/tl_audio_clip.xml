@@ -1,0 +1,74 @@
+<Element>
+
+      <Sm2TiAudioClip DbId="8d797975-81c9-4ee5-8ffd-122b3b3558ac">
+
+       <FieldsBlob>000000020000005b8128b52ffd206e8d0200d205111ab027ad0187a4a271b04cc4fa884512242c69488ba5b8356e3b0501851908180bd3b0294aa8d8a4e1d29e68ba4c9e7b3c914a647adec28b1e517b0f5fb70073445d252a03007b0a63ee9633d705</FieldsBlob>
+
+       <PrettyType/>
+
+       <Name>sample.mp4</Name>
+
+       <Start>92566</Start>
+
+       <Duration>145</Duration>
+
+       <LinkedItemSync/>
+
+       <WasDisbanded>false</WasDisbanded>
+
+       <MarkersBA/>
+
+       <UiMemento>0</UiMemento>
+
+       <Flags>0</Flags>
+
+       <PriorityIndex>0</PriorityIndex>
+
+       <EffectFiltersBA/>
+
+       <ImportExportMetadataBA/>
+
+       <RenderTextEnabled>false</RenderTextEnabled>
+
+       <RenderTextGanged>false</RenderTextGanged>
+
+       <RenderTextPrefixed>false</RenderTextPrefixed>
+
+       <In>6166</In>
+
+       <MixedFrameRateAlignment>0</MixedFrameRateAlignment>
+
+       <MediaRef>47ece05d-4ef9-475e-9c71-de77412feb33</MediaRef>
+
+       <MediaStartTime>0</MediaStartTime>
+
+       <MediaFilePath>D://Media//sample.mp4</MediaFilePath>
+
+       <MediaReelNumber/>
+
+       <MediaFrameRate>00000000000038400000000000000000</MediaFrameRate>
+
+       <MediaTimemapBA>024076b2aaaaaaaaaa</MediaTimemapBA>
+
+       <LastChangedTime>0</LastChangedTime>
+
+       <LastRenderedTime>0</LastRenderedTime>
+
+       <IsMarkedForCaching>false</IsMarkedForCaching>
+
+       <IsForceConformed>true</IsForceConformed>
+
+       <MatchConflictState>0</MatchConflictState>
+
+       <UseOppositeSrcForLeftEye>false</UseOppositeSrcForLeftEye>
+
+       <UseOppositeSrcForRightEye>false</UseOppositeSrcForRightEye>
+
+       <RenderCacheBA/>
+
+       <VirtualAudioTrackBA>000000010000000200000014004300680061006e006e0065006c0073004200410000000c000000001000000002000000020000400100004002000000120041007500640069006f0054007900700065000000020000000000</VirtualAudioTrackBA>
+
+       <MediaTrackIdx>0</MediaTrackIdx>
+
+      </Sm2TiAudioClip>
+      </Element>

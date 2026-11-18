@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<title>NLE Bridge</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1b1e24; --panel2:#20242c; --line:#2c313b;
+    --txt:#e6e8ec; --dim:#8b93a1; --accent:#4aa3ff; --ok:#5fbf7f; --warn:#e0b354; --err:#e06c75;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font:13px/1.6 "Microsoft YaHei UI","Segoe UI",system-ui,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden; user-select:none;
+  }
+  header{
+    display:flex; align-items:baseline; gap:10px; padding:14px 20px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:15px; margin:0; font-weight:600; letter-spacing:.3px}
+  header .sub{color:var(--dim); font-size:12px}
+  header .spacer{flex:1}
+  header .ver{color:var(--dim); font-size:11px}
+
+  main{flex:1; overflow:auto; padding:14px 20px 8px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px}
+  .card h2{font-size:12px; margin:0 0 10px; color:var(--dim); font-weight:600; letter-spacing:.6px}
+
+  .seg{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+  .seg label{
+    display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:7px;
+    background:var(--panel2); border:1px solid var(--line); cursor:pointer; font-size:12.5px;
+  }
+  .seg input{display:none}
+  .seg label:hover{border-color:#3b4350}
+  .seg input:checked + span{color:var(--accent)}
+  .seg label:has(input:checked){border-color:var(--accent); background:#1d2b3c}
+
+  .row{display:flex; gap:8px}
+  input[type=text]{
+    flex:1; background:#15181d; border:1px solid var(--line); color:var(--txt);
+    border-radius:7px; padding:8px 10px; font-size:12.5px; font-family:inherit;
+  }
+  input[type=text]:focus{outline:none; border-color:var(--accent)}
+  button{
+    background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+    border-radius:7px; padding:8px 14px; cursor:pointer; font-size:12.5px; font-family:inherit;
+  }
+  button:hover{border-color:#3b4350}
+  button:disabled{opacity:.5; cursor:default}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#0d1117; font-weight:600}
+  button.primary:hover{background:#5eaeff}
+
+  .adv{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 18px}
+  .adv label{display:flex; align-items:center; gap:7px; color:#c8cdd6; font-size:12.5px}
+  .adv .hint{color:var(--dim); font-size:11.5px; grid-column:1/-1; margin-top:2px}
+  select{
+    background:#15181d; color:var(--txt); border:1px solid var(--line);
+    border-radius:7px; padding:6px 8px; font-size:12.5px; font-family:inherit;
+  }
+
+  .bar{display:flex; align-items:center; gap:10px; padding:6px 20px 12px}
+  .status{color:var(--dim); font-size:12px; margin-left:auto}
+
+  #log{
+    flex:0 0 34vh; margin:0 20px 16px; background:#0f1114; border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; overflow:auto; user-select:text;
+    font:12px/1.65 Consolas,"Cascadia Mono",monospace; white-space:pre-wrap; word-break:break-all;
+  }
+  #log div{min-height:1.65em}
+  #log .ok{color:var(--ok)} #log .warn{color:var(--warn)} #log .err{color:var(--err)}
+  #log .dim{color:#6a7280}
+  .spin{display:inline-block; width:12px; height:12px; border:2px solid #3b4350;
+    border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite; vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>NLE Bridge</h1>
+  <span class="sub">剪映 / Premiere / 达芬奇 时间线互转</span>
+  <span class="spacer"></span>
+  <span class="ver" id="ver"></span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. 源工程</h2>
+    <div class="seg" id="srcSeg">
+      <label><input type="radio" name="srcfmt" value="jianying" checked><span>剪映草稿目录</span></label>
+      <label><input type="radio" name="srcfmt" value="pr"><span>Premiere XML</span></label>
+      <label><input type="radio" name="srcfmt" value="fcpxml"><span>达芬奇 FCPXML</span></label>
+    </div>
+    <div class="row">
+      <input type="text" id="src" placeholder="选择剪映草稿目录，或 .xml / .fcpxml 交换文件">
+      <button id="btnSrc">浏览…</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. 目标</h2>
+    <div class="seg" id="dstSeg">
+      <label><input type="radio" name="dst" value="resolve" checked><span>达芬奇（FCPXML）</span></label>
+      <label><input type="radio" name="dst" value="pr"><span>Premiere（XML）</span></label>
+      <label><input type="radio" name="dst" value="jianying"><span>剪映草稿（反向）</span></label>
+    </div>
+    <div class="row">
+      <input type="text" id="out" placeholder="输出目录">
+      <button id="btnOut">浏览…</button>
+      <button id="btnOpenOut">打开</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>高级选项</h2>
+    <div class="adv">
+      <label><input type="checkbox" id="optWm"> 保留剪映推广水印</label>
+      <label><input type="checkbox" id="optStill"> 静帧按中心对齐（默认按达芬奇实测的底边）</label>
+      <label><input type="checkbox" id="optYDown"> 平移按 Y 向下（仅画面上下镜像时勾）</label>
+      <label>缩放语义
+        <select id="optScale">
+          <option value="fit">fit（相对适应画布，默认）</option>
+          <option value="native">native（相对素材原始像素）</option>
+        </select>
+      </label>
+      <div class="hint">缩放语义只影响达芬奇；项目里关掉 Image Scaling 才用 native。这些选项留默认即可，改动前看报告里的说明。</div>
+    </div>
+  </section>
+</main>
+
+<div class="bar">
+  <button class="primary" id="btnRun">开始转换</button>
+  <button id="btnReport" disabled>打开报告</button>
+  <button id="btnClear">清空日志</button>
+  <span class="status" id="status">就绪</span>
+</div>
+
+<div id="log"></div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

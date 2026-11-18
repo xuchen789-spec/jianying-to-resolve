@@ -1,0 +1,10 @@
+{
+  "name": "nle-bridge-client",
+  "productName": "NLE Bridge",
+  "version": "1.0.0",
+  "description": "剪映 / Premiere / 达芬奇 时间线互转客户端",
+  "main": "main.js",
+  "author": "xuchen",
+  "license": "UNLICENSED",
+  "private": true
+}

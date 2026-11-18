@@ -1,0 +1,96 @@
+<Element>
+
+      <Sm2TiVideoClip DbId="a367f544-f7cd-45ee-8ee7-9792fbca04a6">
+
+       <FieldsBlob>000000020000006c8128b52ffd208315030012471520b027ad010cc3304029394038ec0821b268822a8a705bcb8e2f3a4d388ed8ca14778f4bb4d6da0b0e085708401c17593a0dd9a5b2995c9d2c33650f1119d3e69355a6b599aaabea5455a6aa78f424e0be400f6aa00300871b2870df994302</FieldsBlob>
+
+       <PrettyType/>
+
+       <Name>sample.mp4</Name>
+
+       <Start>86400</Start>
+
+       <Duration>79</Duration>
+
+       <LinkedItemSync/>
+
+       <WasDisbanded>false</WasDisbanded>
+
+       <MarkersBA/>
+
+       <UiMemento>0</UiMemento>
+
+       <Flags>0</Flags>
+
+       <PriorityIndex>0</PriorityIndex>
+
+       <EffectFiltersBA/>
+
+       <ImportExportMetadataBA/>
+
+       <RenderTextEnabled>true</RenderTextEnabled>
+
+       <RenderTextGanged>true</RenderTextGanged>
+
+       <RenderTextPrefixed>true</RenderTextPrefixed>
+
+       <In/>
+
+       <MixedFrameRateAlignment>0</MixedFrameRateAlignment>
+
+       <MediaRef>47ece05d-4ef9-475e-9c71-de77412feb33</MediaRef>
+
+       <MediaStartTime>0</MediaStartTime>
+
+       <MediaFilePath>D://Media//sample.mp4</MediaFilePath>
+
+       <MediaReelNumber/>
+
+       <MediaFrameRate>00000000000038400000000000000000</MediaFrameRate>
+
+       <MediaTimemapBA>024076b2aaaaaaaaaa</MediaTimemapBA>
+
+       <LastChangedTime>0</LastChangedTime>
+
+       <LastRenderedTime>0</LastRenderedTime>
+
+       <IsMarkedForCaching>false</IsMarkedForCaching>
+
+       <IsForceConformed>true</IsForceConformed>
+
+       <MatchConflictState>0</MatchConflictState>
+
+       <UseOppositeSrcForLeftEye>false</UseOppositeSrcForLeftEye>
+
+       <UseOppositeSrcForRightEye>false</UseOppositeSrcForRightEye>
+
+       <RenderCacheBA/>
+
+       <CurrentSelectorIdx>0</CurrentSelectorIdx>
+
+       <IsPreConformed>false</IsPreConformed>
+
+       <PreConformMediaExtents>00000100000030c20000010000003042</PreConformMediaExtents>
+
+       <MediaMetadata/>
+
+       <Thumbnail>
+
+        <BtThumnail DbId="6470ec36-0472-4d26-8aba-2ff7d222414e">
+
+         <FieldsBlob/>
+
+         <ImgWidth>-1</ImgWidth>
+
+         <ImgHeight>-1</ImgHeight>
+
+         <Buffer/>
+
+        </BtThumnail>
+
+       </Thumbnail>
+
+       <ThumbnailDirtyFlag>true</ThumbnailDirtyFlag>
+
+      </Sm2TiVideoClip>
+      </Element>

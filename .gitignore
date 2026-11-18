@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 产物
+out/
+out_video/
+test-out/
+release/
+dist/
+build/
+*.fcpxml
+*.srt
+
+# 素材与草稿（体积大 / 可能含他人版权）
+*.mp4
+*.mov
+*.mkv
+*.wav
+*.mp3
+*.png
+*.jpg
+draft_content.json
+draft_content_decrypted.json
+*.drp
+*.drt
+
+# 本机私有比对（jk_crypto 的本地实现等）
+jy_crypto_local.py
