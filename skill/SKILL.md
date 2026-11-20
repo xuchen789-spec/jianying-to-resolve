@@ -161,3 +161,17 @@ scripts/nb.py               命令入口（自动切到仓库再跑 cli.py）
 references/坑位库.md          30 条实测坑 + 三条通用配方
 references/命令手册.md        全部子命令与参数、退出码约定
 ```
+
+## 改动与同步（唯一源 = 仓库）
+
+技能目录 `~/.workbuddy/skills/nle-bridge` 是仓库 `skill/` 的副本，**不要直接改它**。
+
+| 要改什么 | 改哪里 |
+|---|---|
+| 流程、门禁、坑位、命令手册 | 仓库 `skill/SKILL.md`、`skill/references/*.md` |
+| 转换逻辑、审计、在线补齐 | 仓库 `nlebridge/`、`cli.py`、`tools/`（技能不复制代码） |
+
+- 每次跑 `nb.py` 会先对齐一次：仓库里比技能目录新的文件自动复制过来（`NLE_SKILL_NO_SYNC=1` 可关）
+- 手工同步 / 核对：`python tools/sync_skill.py` / `python tools/sync_skill.py --check`
+- `preflight.py` 第 [5] 项会报偏离，红了就同步
+- 反向情况（技能目录被手工改过、比仓库新）**不会**自动覆盖，只告警；要保留就先抄回仓库再提交

@@ -82,6 +82,19 @@ python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 
 技能只是薄壳，真正的逻辑始终在 `nlebridge/` 里，**不会**被复制进技能目录——两份代码必然分叉。
 
+### 技能目录怎么保持同步
+
+技能目录是 `skill/` 的副本。`tools/sync_skill.py` 负责把仓库单向同步过去：
+
+```bash
+python tools/sync_skill.py            # 同步（只写 SKILL.md / references / scripts）
+python tools/sync_skill.py --check    # 只检查，有差异返回 1
+```
+
+`nb.py` 每次启动时会先对齐一次（`NLE_SKILL_NO_SYNC=1` 可关），`preflight.py` 的第 [5] 项
+也会报出偏离。所以**改文档/改流程只改仓库 `skill/`，不要直接改技能目录**：
+目标端若比仓库新（手工改过），只会告警、不会静默覆盖。
+
 ## 许可
 
 MIT，见 `LICENSE`。使用前请确认：你转换的工程是**你自己拥有版权或已获授权**的素材。

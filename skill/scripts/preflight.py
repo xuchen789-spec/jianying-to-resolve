@@ -87,6 +87,24 @@ def main():
                 check(False, f"连不上：{e}\n"
                              "       → 首选项 > 系统 > 常规 > 外部脚本使用 = 本地（改完重启达芬奇）")
 
+    print("\n[5] 技能同步")
+    skill_dir = pathlib.Path(__file__).resolve().parent.parent
+    src = root / "skill"
+    if not src.is_dir():
+        check(False, f"仓库里没有 skill/（{src}）")
+    elif src.resolve() == skill_dir.resolve():
+        check(True, "技能目录即仓库 skill/（链接安装，天然同步）")
+    else:
+        try:
+            sys.path.insert(0, str(root / "tools"))
+            import sync_skill
+            diff = [(r, k) for r, k in sync_skill.plan(src, skill_dir) if k != sync_skill.C_SAME]
+            check(not diff,
+                  "技能目录与仓库一致" if not diff
+                  else f"技能目录偏离 {len(diff)} 处 → 跑 python tools/sync_skill.py")
+        except Exception as e:
+            check(False, f"同步检查失败：{type(e).__name__}: {e}")
+
     print()
     if fails:
         print(f"{BAD} {len(fails)} 项不满足，先修再跑")

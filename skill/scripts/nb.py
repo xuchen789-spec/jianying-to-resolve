@@ -33,8 +33,30 @@ def find_root():
         "（形如 D:/work/nle-bridge）。")
 
 
+def auto_sync(root):
+    """把技能目录与仓库 skill/ 对齐 —— 迭代只改仓库, 技能自动跟随。
+
+    NLE_SKILL_NO_SYNC=1 可临时关掉。冲突（技能目录被手工改过）只告警不覆盖。
+    """
+    if os.environ.get("NLE_SKILL_NO_SYNC"):
+        return
+    src = pathlib.Path(root) / "skill"
+    if not src.is_dir():
+        return                      # 仓库里没有 skill/（例如直接跑源码仓库）
+    here = pathlib.Path(__file__).resolve().parent.parent
+    if here.resolve() == src.resolve():
+        return                      # 技能目录本身就是仓库 skill/（链接方式安装）
+    try:
+        sys.path.insert(0, str(pathlib.Path(root) / "tools"))
+        import sync_skill
+        sync_skill.sync(src, here, quiet=True, log=print)
+    except Exception as e:
+        print(f"! 技能同步跳过：{type(e).__name__}: {e}")
+
+
 def main():
     root = find_root()
+    auto_sync(root)
     os.chdir(root)
     sys.path.insert(0, str(root))
     if not os.path.exists(os.path.join(root, "cli.py")):
