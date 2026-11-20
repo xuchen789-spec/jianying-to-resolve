@@ -66,17 +66,24 @@ tkinter 版 `nlebridge_gui.py`（需要带 tkinter 的完整 Python），作为�
 # 查看结构（不写文件）
 python cli.py inspect -i "D:/剪映草稿/某工程"
 
-# 剪映 → 达芬奇
-python cli.py convert -i "D:/剪映草稿/某工程" -t resolve -o out
+# 转换前先出确认单：帧率从哪来、工程尺寸、时长、轨数、还有哪些要你拍板
+python cli.py convert -i "D:/剪映草稿/某工程" -t resolve -o out --plan
+
+# 确认后真转（非交互环境必须带 --yes，否则以退出码 3 停住，不写文件）
+python cli.py convert -i "D:/剪映草稿/某工程" -t resolve -o out --yes
+python cli.py convert -i "D:/剪映草稿/某工程" -t resolve -o out --yes --fps 30 --size 1920x1080
+
+# 转完直接导入达芬奇并打开（备份旧时间线 → 删同名 → 导入 → 核对帧数）
+python cli.py convert -i "D:/剪映草稿/某工程" -t resolve -o out --yes --import
 
 # 剪映 → Premiere
-python cli.py convert -i "D:/剪映草稿/某工程" -t pr -o out
+python cli.py convert -i "D:/剪映草稿/某工程" -t pr -o out --yes
 
 # Premiere → 达芬奇
-python cli.py convert -i "某序列.xml" -t resolve -o out
+python cli.py convert -i "某序列.xml" -t resolve -o out --yes
 
 # Premiere / 达芬奇 → 剪映（反向）
-python cli.py convert -i "某序列.xml" -t jianying -o out
+python cli.py convert -i "某序列.xml" -t jianying -o out --yes
 
 # 导入达芬奇、打开目标时间线后：转场 + 淡变 + 蒙版 一次做完
 python cli.py post -i "D:/剪映草稿/某工程" --audit   # 离线：只数数量，不用开达芬奇
@@ -86,6 +93,13 @@ python cli.py post -i "D:/剪映草稿/某工程" --go      # 写入并保存
 # 导入达芬奇后核对"到底进去了什么"（读工程库, 只读）
 python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 ```
+
+`convert` 默认会先停下来要一次确认（帧率 + 工程尺寸），因为草稿里的帧率常常只能靠推断，
+一旦推错整条时间线的帧号全偏。`--plan` 只出单子不写文件；`--yes` 表示"已经跟人确认过"；
+非交互环境（脚本 / agent）没给 `--yes` 会打印单子后**退出码 3 退出**，一个字都不写。
+
+`--import` 的顺序是：导出 `.drt` 备份旧时间线 → 删同名 → 导入 → 打开 → 比对帧数与轨数。
+备份失败就不删；删了之后导入失败会自动从备份导回。这是唯一会动达芬奇工程的开关，默认关闭。
 
 `post` 固定按 **转场 → 淡变 → 蒙版** 执行，一条命令做完，不用记三条命令也不会漏。
 顺序会影响结果：淡变的画面渐显同样是 `Cross Dissolve`，先跑转场能保住该上 BCC+ 的切点。
@@ -109,7 +123,7 @@ python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 
 ## 技能包里有什么
 
-`skill/` 是本仓库自带的技能包：`SKILL.md`（五阶段流程 + 六条硬门禁）、`references/命令手册.md`、
+`skill/` 是本仓库自带的技能包：`SKILL.md`（五阶段流程 + 七条硬门禁）、`references/命令手册.md`、
 `references/坑位库.md`（30 条实测坑）、以及两个薄壳脚本 `nb.py` / `preflight.py`。
 
 技能只是薄壳，真正的逻辑始终在 `nlebridge/` 里，**不会**被复制进技能目录——两份代码必然分叉。

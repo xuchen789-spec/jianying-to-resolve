@@ -313,7 +313,7 @@ def infer_fps(d) -> tuple:
 
 def read(src: str, name: Optional[str] = None, keep_watermark: bool = False,
          orig_audio: str = "track", dedup_jy: bool = True,
-         fps: Optional[int] = None) -> Timeline:
+         fps: Optional[int] = None, size: Optional[tuple] = None) -> Timeline:
     """orig_audio: 视频轨自带声音怎么落到 IR
       'track' (默认) = 单独生成 "Vn 原声" 音频轨, 视频片段只带视频
       'video'        = 声音挂在视频片段上(own_audio), 不生成额外音轨
@@ -321,6 +321,8 @@ def read(src: str, name: Optional[str] = None, keep_watermark: bool = False,
     dedup_jy: 剪映音轨里"同一素材、同一段"被放在两条轨上(一条完全被另一条包住、
       速度和淡变都一样、音量都没加强)时, 删掉多余那条 —— 那是重复, 不是创作。
       刻意加强(音量>1)或有不同处理的叠放一律保留。
+    size: 目标工程尺寸 (w, h)。默认取草稿 canvas_config。给不同的值时按新画布
+      重新算 fit 系数与像素位移（用户确认"工程是 4K 但草稿按 1080 做的"就用这个）。
     """
     d, base = load_draft_json(src)
     ctx = _Ctx(d, base)
@@ -332,14 +334,26 @@ def read(src: str, name: Optional[str] = None, keep_watermark: bool = False,
         fps, fps_score, n_bounds = infer_fps(d)
         fps_auto = (fps, fps_score, n_bounds)
     cc = d.get("canvas_config") or {}
+    cw = int(cc.get("width", 1920))
+    ch = int(cc.get("height", 1080))
+    if size:
+        w, h = int(size[0]), int(size[1])
+    else:
+        w, h = cw, ch
     tl = Timeline(
         name=name or os.path.basename(base.rstrip("/\\")),
-        width=int(cc.get("width", 1920)),
-        height=int(cc.get("height", 1080)),
+        width=w,
+        height=h,
         fps=fps,
         source_app="jianying",
         video_audio_mode=orig_audio,
     )
+    tl.canvas_from_draft = (cw, ch)      # 草稿原本写的画布, 给确认单显示用
+    tl.fps_inferred = fps_auto           # (fps, 对齐率, 参与推断的边界数) 或 None
+    if size and (w, h) != (cw, ch):
+        tl.warnings.append(
+            "工程尺寸按 %dx%d 输出 (草稿画布是 %dx%d), 位移与缩放已按新画布重算, "
+            "导入后请先看一个带位移的镜头是否还在原位" % (w, h, cw, ch))
     if fps_auto:
         a_fps, a_score, a_n = fps_auto
         if a_n == 0:

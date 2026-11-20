@@ -18,12 +18,153 @@
 """
 import argparse
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import nlebridge as nb
 from nlebridge import report
+
+
+def _parse_size(s):
+    """'1920x1080' / '1920*1080' / '1080p' / '4K' -> (w, h)；认不出返回 None。"""
+    if not s:
+        return None
+    alias = {"1080p": (1920, 1080), "720p": (1280, 720), "2k": (2048, 1080),
+             "4k": (3840, 2160), "uhd": (3840, 2160), "8k": (7680, 4320)}
+    k = str(s).strip().lower()
+    if k in alias:
+        return alias[k]
+    m = re.match(r"^(\d{2,5})\s*[x×*:]\s*(\d{2,5})$", k)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    raise argparse.ArgumentTypeError("尺寸写成 1920x1080 这样，或 1080p / 4K: %r" % s)
+
+
+def _fps_line(tl):
+    """帧率这一行要带上"这个数从哪来"，否则确认无从谈起。"""
+    inf = getattr(tl, "fps_inferred", None)
+    if not inf:
+        return "%d fps  (命令行指定)" % tl.fps
+    f, score, n = inf
+    if n < 0:                        # -1 = 草稿自带 fps 字段
+        return "%d fps  (草稿里写明了)" % f
+    if n == 0:
+        return "%d fps  (草稿没写, 也没有可推断的片段 —— 这个是默认值, 必须你确认)" % f
+    return ("%d fps  (草稿没写, 按 %d 个片段边界推断, 对齐率 %.0f%%)"
+            % (f, n, score * 100))
+
+
+def _size_line(tl):
+    cw = getattr(tl, "canvas_from_draft", (tl.width, tl.height))
+    if (cw[0], cw[1]) == (tl.width, tl.height):
+        return "%d × %d  (草稿 canvas_config)" % (tl.width, tl.height)
+    return "%d × %d  (草稿是 %d×%d, 已按目标重算位移与缩放)" % (
+        tl.width, tl.height, cw[0], cw[1])
+
+
+def confirm_sheet(tl, dest_label, target_path, size, do_import=False,
+                  keep_old=False, fps_given=False):
+    """转换前的确认单。只打印，不改任何东西。"""
+    frames = int(round(tl.duration / 1e6 * tl.fps)) if tl.duration else 0
+    nv = len([t for t in tl.tracks if t.kind == "video" and t.clips])
+    na = len([t for t in tl.tracks if t.kind == "audio" and t.clips])
+    line = "─" * 64
+    print(line)
+    print("转换前确认（问一次，别边转边猜）")
+    print(line)
+    print("  源        : %s" % tl.name)
+    print("  帧率      : %s" % _fps_line(tl))
+    print("  工程尺寸  : %s" % _size_line(tl))
+    print("  时长      : %.2f s = %d 帧" % (tl.duration / 1e6, frames))
+    print("  轨道      : 视频 %d 条 / 音频 %d 条 / 素材 %d 个"
+          % (nv, na, len(tl.media)))
+    print("  输出      : %s → %s" % (dest_label, target_path))
+    if do_import:
+        print("  导入      : 会连达芬奇，%s 后新建时间线并打开它"
+              % ("**删掉同名旧时间线**" if not keep_old else "保留同名旧时间线"))
+    must = []
+    info = []
+    ASK = ("请核对", "请确认", "不对就", "请检查", "请指定", "?", "？")
+    for w in tl.warnings:
+        (must if any(k in w for k in ASK) else info).append(w)
+    inf = getattr(tl, "fps_inferred", None)
+    if fps_given:
+        pass
+    elif inf and inf[2] < 0:
+        must.insert(0, "帧率按草稿写的 %d fps，确认？(不同就 --fps)" % tl.fps)
+    elif inf and inf[1] < 0.9:
+        must.insert(0, "帧率推断只有 %.0f%% 对齐率，是不是 %d fps？(不是就用 --fps 指定)"
+                    % (inf[1] * 100, tl.fps))
+    elif inf:
+        must.insert(0, "帧率是推断出来的（草稿没写），确认是 %d fps？(不是就 --fps)" % tl.fps)
+    else:
+        must.insert(0, "帧率 %d fps，确认？(不同就 --fps)" % tl.fps)
+    must.append("工程尺寸确认是 %d×%d？(不同就 --size 3840x2160)" % (tl.width, tl.height))
+    if must:
+        print("\n需要你拍板:")
+        for i, q in enumerate(must, 1):
+            print("  %d) %s" % (i, q))
+    if info:
+        print("\n供参考（不影响这次转换，已按下面处理）:")
+        for w in info[:3]:
+            print("  - " + w[:96] + ("…" if len(w) > 96 else ""))
+        if len(info) > 3:
+            print("  - …还有 %d 条，见 convert 结束时的完整清单" % (len(info) - 3))
+    print(line)
+    return frames
+
+
+def _confirm_convert(tl, dest_label, target_path, size, do_import, keep_old,
+                     confirmed=False, fps_given=False):
+    """返回 (fps, size) —— 用户确认/修改后的值；取消返回 None。
+
+    三种情况：
+      - 有 --yes      : 直接过（说明调用方已经跟人确认过）
+      - 交互终端      : 问一次，回车接受，也可现场改帧率或尺寸
+      - 非交互(agent) : 打印确认单后返回 None，由调用方以退出码 3 退出 ——
+                        这就是"转换前必须问用户一次"的闸门，不许默默用推断值往下走
+    """
+    confirm_sheet(tl, dest_label, target_path, size, do_import, keep_old,
+                  fps_given=fps_given)
+    fps, sz = tl.fps, (tl.width, tl.height)
+
+    if confirmed:
+        print("已确认（--yes），按上面的值转换。")
+        return fps, sz
+    if not sys.stdin.isatty():
+        print("\n还没确认。这是非交互运行：")
+        print("  → 把上面的帧率/尺寸跟用户核一次，然后用同样的参数加 --yes 重跑；")
+        print("    有出入就同时带上 --fps 30 --size 1920x1080。")
+        return None
+
+    hint = "\n回车=按上面的值转换 / 输数字=改帧率 / 输 1920x1080=改尺寸 / q=取消\n> "
+    while True:
+        try:
+            s = input(hint).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return None
+        if not s:
+            return fps, sz
+        if s.lower() in ("q", "quit", "n", "no"):
+            return None
+        if re.match(r"^\d{1,3}(\.\d+)?$", s):
+            f = float(s)
+            if 1 <= f <= 240:
+                fps = int(round(f))
+                print("  帧率改为 %d fps" % fps)
+                continue
+            print("  帧率不合理: %s" % s)
+            continue
+        try:
+            w, h = _parse_size(s)
+        except argparse.ArgumentTypeError as e:
+            print("  " + str(e))
+            continue
+        sz = (w, h)
+        print("  尺寸改为 %d×%d" % sz)
 
 
 def main():
@@ -78,6 +219,20 @@ def main():
     p_con.add_argument("--fps", type=int, default=None,
                        help="剪映草稿帧率。新版剪映不写 fps 字段, 默认按片段边界自动推断; "
                             "推断有疑问时(报告里会提示对齐率)用它强制指定")
+    p_con.add_argument("--size", default=None,
+                       help="目标工程尺寸, 如 1920x1080 / 4K。默认取草稿画布; "
+                            "给不同的值时按新画布重算位移与缩放")
+    p_con.add_argument("--plan", action="store_true",
+                       help="只出「转换前确认单」(帧率/工程尺寸/输出路径/待拍板问题), "
+                            "不写任何文件")
+    p_con.add_argument("--yes", action="store_true",
+                       help="已跟用户确认过帧率与工程尺寸, 跳过交互确认"
+                            "(非交互环境不加这个会被拦下, 退出码 3)")
+    p_con.add_argument("--import", dest="do_import", action="store_true",
+                       help="转换后自动导入达芬奇: 删同名旧时间线 -> 导入 -> 打开 "
+                            "(仅 -t resolve; 是写操作, 会连当前打开的工程)")
+    p_con.add_argument("--keep-old", action="store_true",
+                       help="--import 时不删同名旧时间线(导入会变成 \"名字 1\", 一般不该用)")
 
     p_doc = sub.add_parser("doctor", help="导入后核对达芬奇工程库里的实际结构")
     p_doc.add_argument("-p", "--project", required=True,
@@ -225,10 +380,23 @@ def main():
                                 log=print, fps=getattr(a, "fps", None))
         sys.exit(0 if fail == 0 else 1)
 
+    if a.cmd == "convert" and getattr(a, "do_import", False) and a.to != "resolve":
+        print("--import 只支持 -t resolve：它导入的是达芬奇当前打开的工程。")
+        print("  给 Premiere / 剪映 的产物没有可用的一键导入。")
+        sys.exit(2)
+
+    size = _parse_size(getattr(a, "size", None))
+    if size:
+        try:
+            if nb.detect(a.input) != "jianying":
+                print("  ! --size 目前只对剪映草稿生效（其它格式的画布来自源文件）, 已忽略")
+                size = None
+        except Exception:
+            pass
     tl = nb.read(a.input, a.fmt, keep_watermark=getattr(a, "keep_watermark", False),
                  orig_audio=getattr(a, "orig_audio", "track"),
                  dedup_jy=not getattr(a, "keep_jy_dup", False),
-                 fps=getattr(a, "fps", None))
+                 fps=getattr(a, "fps", None), size=size)
     print(tl.summary())
     for w in tl.warnings:
         print("  !", w)
@@ -237,6 +405,37 @@ def main():
 
     base = a.name or tl.name
     out_dir = os.path.join(a.out, base) if a.to == "jianying" else a.out
+
+    # ---------- 转换前确认：帧率 + 工程尺寸（一次问清，不边转边猜）----------
+    dest_label = {"resolve": "达芬奇 (FCPXML)", "pr": "Premiere (XML)",
+                  "jianying": "剪映草稿", "drt": "达芬奇工程包 (.drp)"}[a.to]
+    target = {"resolve": os.path.join(out_dir, f"{base}_resolve.fcpxml"),
+              "pr": os.path.join(out_dir, f"{base}_premiere.xml"),
+              "jianying": out_dir,
+              "drt": os.path.join(out_dir, f"{base}.drp")}[a.to]
+    if a.plan:
+        confirm_sheet(tl, dest_label, target, size,
+                      getattr(a, "do_import", False), a.keep_old,
+                      fps_given=bool(a.fps))
+        print("\n只出确认单（--plan），没有写任何文件。")
+        return
+    got = _confirm_convert(tl, dest_label, target, size,
+                           getattr(a, "do_import", False), a.keep_old,
+                           confirmed=bool(a.yes), fps_given=bool(a.fps))
+    if got is None:
+        print("\n已取消，未写任何文件。")
+        sys.exit(3)
+    fps2, size2 = got
+    if (fps2 and fps2 != tl.fps) or (size2 and tuple(size2) != (tl.width, tl.height)):
+        print("\n按确认后的参数重读草稿: %d fps %d×%d" % (fps2, size2[0], size2[1]))
+        a.fps = fps2
+        size = tuple(size2)
+        tl = nb.read(a.input, a.fmt, keep_watermark=getattr(a, "keep_watermark", False),
+                     orig_audio=getattr(a, "orig_audio", "track"),
+                     dedup_jy=not getattr(a, "keep_jy_dup", False),
+                     fps=fps2, size=size)
+        print(tl.summary())
+
     os.makedirs(out_dir, exist_ok=True)
 
     # 容器容错: 剪映曲库缓存会把 M4A 存成 .mp3, 达芬奇按后缀选解码器会失败
@@ -268,9 +467,29 @@ def main():
         n_fade = len(nb.lua_post.fade_entries(tl))
         p_lua = nb.lua_post.generate(tl, os.path.join(out_dir, f"{base}_postimport.lua"))
         print("[ok]", p_lua, f"(淡变 {n_fade} 处, 含画面渐显/渐隐; 老路: 工作区>脚本>Utility 里点一下)")
-        print("     导入达芬奇并打开目标时间线后, 一条命令做完 转场/淡变/蒙版:")
-        print(f"       python cli.py post -i \"{a.input}\"          # 预演")
-        print(f"       python cli.py post -i \"{a.input}\" --go     # 写入")
+
+        if getattr(a, "do_import", False):
+            from nlebridge import importlive
+            nv, na, frames = importlive.ir_counts(tl)
+            print()
+            res = importlive.import_file(p, name=base,
+                                         keep_old=bool(a.keep_old),
+                                         expect_frames=frames,
+                                         expect_tracks=(nv, na))
+            if not res["ok"]:
+                print("✗ 自动导入失败: %s" % res["error"])
+                print("  时间线没动，离线文件已生成，可手工 File > Import > Timeline:", p)
+                sys.exit(1)
+            if res["warnings"]:
+                print("  ! 导入有 %d 条警告，先看一眼再继续" % len(res["warnings"]))
+            print("     已打开 %r。下一步（对着这条时间线写转场/淡变/蒙版）:" % res["name"])
+            print(f"       python cli.py post -i \"{a.input}\"          # 预演")
+            print(f"       python cli.py post -i \"{a.input}\" --go     # 写入")
+        else:
+            print("     导入达芬奇并打开目标时间线后, 一条命令做完 转场/淡变/蒙版:")
+            print(f"       python cli.py post -i \"{a.input}\"          # 预演")
+            print(f"       python cli.py post -i \"{a.input}\" --go     # 写入")
+            print("     (想连导入也自动: 本命令加 --import)")
     elif a.to == "pr":
         n_fade = sum(1 for t in tl.tracks for c in t.clips if c.fade_in or c.fade_out)
         if n_fade:

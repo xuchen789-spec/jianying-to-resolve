@@ -184,7 +184,8 @@ def offline_audit(draft_dir, fps=None, allow_bottom=False, log=print):
     tl = jy_read.read(draft_dir, fps=fps)
     f = float(getattr(tl, "fps", None) or fps or 24)
     dur_us = float(getattr(tl, "duration", 0) or 0)     # IR 里 duration 是微秒
-    log("草稿: %.3gfps  %.2fs (%d 帧)" % (f, dur_us / 1e6, int(dur_us * f / 1e6)))
+    log("草稿: %.3gfps  %.2fs (%d 帧)"
+        % (f, dur_us / 1e6, int(round(dur_us * f / 1e6))))
 
     # --- 转场 ---
     try:
