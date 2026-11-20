@@ -179,6 +179,7 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
         log("  ! 两者不一致, 帧位按草稿帧率折算到时间线(convert 也是这么做的)")
 
     out = {"ok": True, "steps": {}, "saved": False}
+    seq = 0          # 执行序号: --only 传参顺序与执行顺序无关, 编号要按实际执行
 
     # ---------- 0) 清空壳(可选, 且必须最先) ----------
     if fix_shell:
@@ -198,7 +199,8 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
 
     # ---------- 1) 转场 ----------
     if "trans" in steps:
-        log("\n[%d/%d] 转场" % (steps.index("trans") + 1, len(steps)))
+        seq += 1
+        log("\n[%d/%d] 转场" % (seq, len(steps)))
         try:
             from . import transsync
             rows = transsync.build_plan(draft_dir, fps=fps, tl_fps=tl_fps)
@@ -222,7 +224,8 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
 
     # ---------- 2) 淡变 ----------
     if "fades" in steps:
-        log("\n[%d/%d] 淡变" % (steps.index("fades") + 1, len(steps)))
+        seq += 1
+        log("\n[%d/%d] 淡变" % (seq, len(steps)))
         try:
             from . import fadesync
             ok_n, fail_n = fadesync.run(draft_dir, audit_only=not go, log=log,
@@ -237,7 +240,8 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
 
     # ---------- 3) 蒙版 / 文字 ----------
     if "masks" in steps:
-        log("\n[%d/%d] 蒙版 / 文字" % (steps.index("masks") + 1, len(steps)))
+        seq += 1
+        log("\n[%d/%d] 蒙版 / 文字" % (seq, len(steps)))
         try:
             from . import masklive
             ok_n, fail_n, _ = masklive.run(draft_dir, audit_only=not go, log=log,
