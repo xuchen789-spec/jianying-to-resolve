@@ -151,6 +151,7 @@ MIT，见 `LICENSE`。使用前请确认：你转换的工程是**你自己拥�
 | 关键帧 | `common_keyframes` | `<parameter><keyframe>` | `<param><keyframeAnimation><keyframe>` |
 | 音量 | `volume` | audiolevels（dB） | `audioVolume` |
 | 淡入淡出 | `audio_fades` | 报告提示（XML 无标准表示） | `audioFadeIn/Out` |
+| 转场 | `materials.transitions`（挂宿主**尾部**） | 报告提示 | 在线 `AddTransition`（`cli.py trans`）：叠化/闪白/闪黑用自带，推镜/放射/炫光走 BCC+；FCPXML 里只能写纯叠化/闪黑 |
 | 轨道层级 | 轨序 + render_index | 独立 `<track>` | `lane`（音频负 lane） |
 | 一级调色参数 | `materials.effects`（value） | `<note>` 备注 | XML 注释 |
 | 文本 | `materials.texts` | SRT 字幕 | SRT 字幕 |

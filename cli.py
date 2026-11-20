@@ -115,7 +115,53 @@ def main():
                        help="该段有调色节点(GetNumNodes>1)也重建 —— 会丢调色, 慎用")
     p_fix.add_argument("--enable", action="store_true", help="顺带把被禁用的片段恢复启用")
 
+    p_tr = sub.add_parser("trans",
+                          help="把剪映转场写进达芬奇当前时间线(21.1+ AddTransition; 叠化/闪白/闪黑走自带, 推镜/放射/炫光走 BCC+)")
+    p_tr.add_argument("-i", "--input", required=True, help="剪映草稿目录")
+    p_tr.add_argument("--audit", action="store_true",
+                      help="只读: 只列计划, 不连达芬奇(离线可用)")
+    p_tr.add_argument("--go", action="store_true", help="执行(默认只预演, 不动时间线)")
+    p_tr.add_argument("--fps", type=int, default=None,
+                      help="草稿帧率(默认取达芬奇时间线帧率; --audit 时默认 24)")
+
     a = ap.parse_args()
+
+    if a.cmd == "trans":
+        from nlebridge import transsync
+        if a.audit:
+            rows = transsync.build_plan(a.input, fps=a.fps)
+            if not rows:
+                print("草稿里没有转场")
+                sys.exit(0)
+            print("%-10s %-7s %-6s %-5s %s" % ("转场", "宿主帧", "宿主长", "转场长", "目标效果"))
+            for r in rows:
+                cat, typ = (r["cands"][0][0], r["cands"][0][1]) if r["cands"] else ("-", "未识别→人工")
+                print("%-10s %-7d %-6d %-5d %s/%s" %
+                      (r["name"], r["host_frame"], r["host_dur"], r["dur_frames"], cat, typ))
+            sys.exit(0)
+
+        from nlebridge.fadesync import _connect
+        r = _connect()
+        proj = r.GetProjectManager().GetCurrentProject()
+        tl = proj.GetCurrentTimeline()
+        fps = a.fps
+        if not fps:
+            try:
+                v = tl.GetFrameRate
+                fps = int(round(v() if callable(v) else v))
+            except Exception:
+                fps = 24
+        print("时间线: %s  %sfps  %d 帧" % (tl.GetName(), fps, tl.GetEndFrame()))
+        rows = transsync.build_plan(a.input, fps=a.fps, tl_fps=float(fps))
+        res = transsync.apply(tl, rows, go=bool(a.go))
+        ok = sum(1 for x in res if x["done"])
+        manual = [x for x in res if not x["done"]]
+        print("\n共 %d 处: 就绪 %d, 待人工 %d" % (len(res), ok, len(manual)))
+        if a.go:
+            print("保存:", proj.GetProjectManager().SaveProject())
+        elif rows:
+            print("（预演，未写入。确认后加 --go）")
+        sys.exit(0 if not manual else 0)
 
     if a.cmd == "fix-shell":
         from nlebridge import shellfix

@@ -71,15 +71,22 @@ python tools/audit_inpoint.py -i "<草稿目录>"
 ```
 不要直接去看成片。这一步才告诉你有没有段被倍速吞了入点。
 
-### ⑤ 还原淡变与蒙版（在线写回）
+### ⑤ 还原淡变、转场与蒙版（在线写回）
 ```bash
 python scripts/nb.py fades -i "<草稿目录>" --audit   # 先只读对账
 python scripts/nb.py fades -i "<草稿目录>"           # 再写
+python scripts/nb.py trans -i "<草稿目录>" --audit   # 转场：离线看计划（挂宿主尾部）
+python scripts/nb.py trans -i "<草稿目录>" --go      # 转场：写入（先不带 --go 预演一次）
 python <root>/tools/mask_report.py -i "<草稿目录>"   # 套蒙版前：先看清单
 python scripts/nb.py masks -i "<草稿目录>"           # 蒙版 / 文字 / 抠像
 python scripts/nb.py fix-shell -i "<草稿目录>"       # 历史工程清空壳 comp（先预演）
 ```
 一律先 `--audit` 再写。视频淡变只用交叉叠化（`SetFades` 对视频不持久化）。
+
+转场走 21.1+ 的 `AddTransition`，不重导 fcpxml。映射：叠化→`Cross Dissolve`、
+闪白→`Brightness Flash`、闪黑→`Inverse Flash`、推镜变焦→`BCC+交叉变焦溶解`、
+放射→`BCC+光线溶解`、炫光→`BCC+镜头光晕溶解`；未识别的进人工清单，不猜。
+入口段没有余量（`source.start=0`，含静帧）时自动退 `left`，否则 API 静默返回 `None`。
 
 `masks` 开跑会先打印计划与跳过统计：
 
