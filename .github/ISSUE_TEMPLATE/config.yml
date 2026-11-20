@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安装与快速开始
+    url: https://github.com/xuchen789-spec/jianying-to-resolve#安装3-步
+    about: 装不上、跑不通、报路径错，先看 README 的安装三步与"技能包里有什么"
+  - name: 已知限制
+    url: https://github.com/xuchen789-spec/jianying-to-resolve#已知限制v1
+    about: 有些效果本来就无法自动还原，先确认是不是已知限制

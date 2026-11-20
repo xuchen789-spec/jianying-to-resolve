@@ -7,6 +7,33 @@
 中立时间线模型（IR）+ 多读取器 / 多写入器架构。任意两端互转，不依赖任何宿主软件，
 不修改源工程，全部本地执行。
 
+## 安装（3 步）
+
+前置：**Python 3.9+**（Windows 安装时勾选 `Add python.exe to PATH`）。git 可选，没有也能装。
+
+```bash
+git clone https://github.com/xuchen789-spec/jianying-to-resolve.git
+cd jianying-to-resolve
+python tools/install_skill.py
+```
+
+Windows 上也可以直接双击仓库根目录的 `install.cmd`，效果一样。
+
+装完打开 WorkBuddy，技能列表里会出现 `nle-bridge`（没出现就重启一次），之后直接说
+「用 nle-bridge 把 D:/剪映草稿/某工程 转到达芬奇」就行。
+
+**没有 git**：仓库页 `Code → Download ZIP`，解压后进目录跑同一条 `python tools/install_skill.py`。
+
+**别只把 `skill/` 目录拷走。** 技能是薄壳，真正的转换逻辑在 `nlebridge/` 里，`skill/config.json`
+的 `root` 必须指向完整仓库；`install_skill.py` 会自动写好这一行，手工拷目录则要自己填。
+
+升级与卸载：
+
+```bash
+git pull                                  # 拉新版；下次运行技能自动对齐 skill/
+rm -rf ~/.workbuddy/skills/nle-bridge     # 卸载（仓库和产出都不动）
+```
+
 ## 转换矩阵
 
 | 来源 \ 目标 | Premiere XML | 达芬奇 (FCPXML) | 剪映草稿 |
@@ -71,16 +98,13 @@ python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 它被单独拆成可选模块：**整个文件删掉也不影响其他任何功能**，`jy_read` 会自动降级为「只读未加密草稿」，
 遇到加密草稿时给出提示（让你在剪映里另存为未加密版本）。见该文件顶部的用途边界说明。
 
-## 作为 WorkBuddy 技能使用
+## 技能包里有什么
 
 `skill/` 是本仓库自带的技能包：`SKILL.md`（五阶段流程 + 六条硬门禁）、`references/命令手册.md`、
-`references/坑位库.md`（30 条实测坑）、以及两个薄壳脚本。
-
-1. 把 `skill/` 整个目录复制到 `~/.workbuddy/skills/nle-bridge/`
-2. 复制 `skill/config.example.json` 为 `config.json`，把 `root` 改成你克隆下来的仓库路径
-3. `python scripts/preflight.py` 自检通过即可开工
+`references/坑位库.md`（30 条实测坑）、以及两个薄壳脚本 `nb.py` / `preflight.py`。
 
 技能只是薄壳，真正的逻辑始终在 `nlebridge/` 里，**不会**被复制进技能目录——两份代码必然分叉。
+所以 `config.json` 里那一行 `root` 是关键：它指向仓库，改代码不需要重新安装。
 
 ### 技能目录怎么保持同步
 
@@ -94,6 +118,20 @@ python tools/sync_skill.py --check    # 只检查，有差异返回 1
 `nb.py` 每次启动时会先对齐一次（`NLE_SKILL_NO_SYNC=1` 可关），`preflight.py` 的第 [5] 项
 也会报出偏离。所以**改文档/改流程只改仓库 `skill/`，不要直接改技能目录**：
 目标端若比仓库新（手工改过），只会告警、不会静默覆盖。
+
+## 参与改进
+
+用起来发现不对，两条路都行：
+
+**报 bug** — 直接开 Issue。模板会问：卡在哪一步（`convert` / 导入达芬奇 / `fades` / `masks` / `fix-shell`）、
+剪映与达芬奇版本、完整命令、报错原文、转换报告里相关的几行、期望什么样实际什么样。
+能附一个最小复现（3 秒、两三条轨的草稿）最好定位。
+
+**已经修好了** — fork → 开分支 → 改 → 发 PR。改动请说明是哪条坑位或哪个现象触发的；
+新踩到的坑欢迎直接追加到 `skill/references/坑位库.md`，那是这个项目最值钱的部分。
+
+隐私：**不要上传客户素材、片名、完整目录路径**。贴日志前把路径打码，截图避开画面内容——
+这个仓库公开，而工具处理的是别人的片子。
 
 ## 许可
 
