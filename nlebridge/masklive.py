@@ -173,7 +173,7 @@ def build_plan(draft_dir: str, fps: float, allow_bottom: bool = False, skips: li
                 if seg.get("enable_video_mask") is False:
                     reason = "草稿里蒙版已关闭 enable_video_mask=False"
                 elif seg.get("enable_adjust_mask") is False:
-                    reason = "调节蒙版未启用 enable_adjust_mask=False"
+                    reason = "调节蒙版未启用 enable_adjust_mask=False (只限定调色区, 不裁画面)"
                 elif (not allow_bottom) and _is_bottom_only(spans, vti, t.get("start", 0),
                                                             t.get("duration", 0)):
                     reason = "该段是最底层, 套蒙版必露黑"
@@ -378,9 +378,18 @@ def run(draft_dir: str, audit_only: bool = False, log=print, allow_bottom: bool 
     resolve = _connect()
     proj = resolve.GetProjectManager().GetCurrentProject()
     tl = proj.GetCurrentTimeline()
+    fps = 0.0
     try:
-        fps = float(tl.GetFrameRate() or 24)
+        fps = float(tl.GetFrameRate() or 0)
     except Exception:
+        fps = 0.0
+    if not fps:
+        # 部分版本 Timeline 没有 GetFrameRate, 从工程设置取; 再不行才退回 24
+        try:
+            fps = float(proj.GetSetting("timelineFrameRate") or 0)
+        except Exception:
+            fps = 0.0
+    if not fps:
         fps = 24.0
     log("timeline=%s fps=%g" % (tl.GetName(), fps))
 
