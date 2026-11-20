@@ -30,3 +30,6 @@ draft_content_decrypted.json
 
 # 本机私有比对（jk_crypto 的本地实现等）
 jy_crypto_local.py
+
+# 技能运行配置（含本机绝对路径）
+skill/config.json

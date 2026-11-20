@@ -69,6 +69,17 @@ python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 它被单独拆成可选模块：**整个文件删掉也不影响其他任何功能**，`jy_read` 会自动降级为「只读未加密草稿」，
 遇到加密草稿时给出提示（让你在剪映里另存为未加密版本）。见该文件顶部的用途边界说明。
 
+## 作为 WorkBuddy 技能使用
+
+`skill/` 是本仓库自带的技能包：`SKILL.md`（五阶段流程 + 六条硬门禁）、`references/命令手册.md`、
+`references/坑位库.md`（30 条实测坑）、以及两个薄壳脚本。
+
+1. 把 `skill/` 整个目录复制到 `~/.workbuddy/skills/nle-bridge/`
+2. 复制 `skill/config.example.json` 为 `config.json`，把 `root` 改成你克隆下来的仓库路径
+3. `python scripts/preflight.py` 自检通过即可开工
+
+技能只是薄壳，真正的逻辑始终在 `nlebridge/` 里，**不会**被复制进技能目录——两份代码必然分叉。
+
 ## 许可
 
 MIT，见 `LICENSE`。使用前请确认：你转换的工程是**你自己拥有版权或已获授权**的素材。

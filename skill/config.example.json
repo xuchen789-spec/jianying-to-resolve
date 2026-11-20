@@ -1,0 +1,7 @@
+{
+  "root": "D:/work/nle-bridge",
+  "resolve_script_api": "C:/ProgramData/Blackmagic Design/DaVinci Resolve/Support/Developer/Scripting",
+  "resolve_script_lib": "C:/Program Files/Blackmagic Design/DaVinci Resolve/fusionscript.dll",
+  "default_out": "D:/work/nle-bridge-out",
+  "_note": "复制本文件为 config.json 再改 root；root 指向源码仓库，不要复制 nlebridge/ 到技能目录，两边各存一份必然分叉。config.json 已在 .gitignore 中，不会被提交。"
+}
