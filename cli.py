@@ -139,6 +139,9 @@ def main():
                         help="开头先清掉历史空壳 comp(会删段重放, 必须最先)")
     p_post.add_argument("--fps", type=int, default=None,
                         help="草稿帧率(默认自动推断, 与 convert 一致)")
+    p_post.add_argument("--ignore-tl-mismatch", action="store_true",
+                        help="跳过「当前时间线是不是这条草稿」的校验 "
+                             "(帧数对不上也照写, 慎用)")
 
     a = ap.parse_args()
 
@@ -155,7 +158,9 @@ def main():
             sys.exit(2)
         res = postsync.run(a.input, go=bool(a.go), steps=steps,
                            allow_bottom=bool(a.allow_bottom),
-                           fix_shell=bool(a.fix_shell), fps=a.fps, log=print)
+                           fix_shell=bool(a.fix_shell), fps=a.fps,
+                           ignore_tl_mismatch=bool(a.ignore_tl_mismatch),
+                           log=print)
         sys.exit(0 if res["ok"] else 1)
 
     if a.cmd == "trans":

@@ -63,16 +63,112 @@ def _tl_fps(tl, default=24.0):
     return float(default)
 
 
-def _draft_fps(draft_dir, fallback):
-    """草稿帧率: 与 convert 保持一致, 优先让 jy_read 自己推断。"""
+def _draft_info(draft_dir, fallback_fps):
+    """读一次草稿, 同时拿帧率和总帧数。
+
+    IR 的 duration 是微秒。帧数 = duration * fps / 1e6, 与 convert 的取整一致。
+    读不出来时返回 (兜底帧率, 0), 由调用方决定跳过校验。
+    """
+    fps = float(fallback_fps)
+    frames = 0
     try:
         from . import jy_read
-        tl = jy_read.read(draft_dir)
-        if getattr(tl, "fps", None):
-            return float(tl.fps)
+        ir = jy_read.read(draft_dir)
+        f = getattr(ir, "fps", None)
+        if f:
+            fps = float(f)
+        dur = float(getattr(ir, "duration", 0) or 0)
+        if dur > 0:
+            frames = int(round(dur * fps / 1e6))
     except Exception:
         pass
-    return float(fallback)
+    return fps, frames
+
+
+def _draft_fps(draft_dir, fallback):
+    """草稿帧率(兼容旧调用): 与 convert 保持一致, 优先让 jy_read 自己推断。"""
+    return _draft_info(draft_dir, fallback)[0]
+
+
+def _timelines(proj):
+    """列出工程里所有时间线: [{"name", "start", "end"}]。拿不到就返回空表。"""
+    rows = []
+    try:
+        n = int(proj.GetTimelineCount())
+    except Exception:
+        return rows
+    for i in range(1, n + 1):
+        try:
+            t = proj.GetTimelineByIndex(i)
+            if t is None:
+                continue
+            rows.append({"name": t.GetName(),
+                         "start": int(t.GetStartFrame()),
+                         "end": int(t.GetEndFrame())})
+        except Exception:
+            continue
+    return rows
+
+
+TL_MISMATCH_TOL = 0.005          # 帧数差 0.5% 以上就认为是另一条时间线
+
+
+def _check_timeline(proj, tl, draft_frames, go, ignore=False, log=print):
+    """开跑前确认「当前激活的时间线」就是草稿要落的这一条。
+
+    为什么必须有这一步: 转场和蒙版都是按**帧号**写回去的。工程里往往同时存在
+    好几条同源时间线(初版、精剪版、只含部分段落的试验版), 一旦激活到帧数不同
+    的那条, 效果会按帧号落到错误位置, 而且 AddTransition 之类照旧返回成功 ——
+    全程零报错, 只是结果不对, 事后极难发现。
+
+    判定: 时间线帧数(end-start) 与草稿总帧差在 0.5% 以内才放行。
+    预演(go=False)只警告不中止, 因为预演不写任何东西; --go 直接拒跑。
+    """
+    name = "?"
+    try:
+        name = tl.GetName()
+        cur_n = int(tl.GetEndFrame()) - int(tl.GetStartFrame())
+    except Exception:
+        return True
+
+    if ignore:
+        log("  ! 已跳过时间线校验 (--ignore-tl-mismatch), 自负其责")
+        return True
+
+    if draft_frames <= 0:
+        log("  ! 草稿总帧算不出来, 跳过时间线校验")
+        log("    (请在写入后人工核对转场/蒙版的位置)")
+        return True
+
+    tol = max(2, int(round(draft_frames * TL_MISMATCH_TOL)))
+    if abs(cur_n - draft_frames) <= tol:
+        log("  时间线校验 ✓ 当前 %d 帧 ≈ 草稿 %d 帧" % (cur_n, draft_frames))
+        return True
+
+    log("  ✗ 时间线校验不通过")
+    log("      当前激活: %r  %d 帧 (%d-%d)"
+        % (name, cur_n, int(tl.GetStartFrame()), int(tl.GetEndFrame())))
+    log("      草稿长度: %d 帧   差 %+d 帧"
+        % (draft_frames, cur_n - draft_frames))
+    rows = _timelines(proj)
+    if rows:
+        log("    工程里的时间线:")
+        for x in rows:
+            k = x["end"] - x["start"]
+            here = ">>" if x["name"] == name else "  "
+            hit = "  <- 帧数对得上, 多半是这条" if abs(k - draft_frames) <= tol else ""
+            log("      %s %-30s %6d 帧 (%d-%d)%s"
+                % (here, x["name"], k, x["start"], x["end"], hit))
+        if not any(abs((x["end"] - x["start"]) - draft_frames) <= tol for x in rows):
+            log("      (没有一条帧数对得上: 可能这条草稿还没导入, 先跑 convert --import)")
+
+    if not go:
+        log("    (预演只读, 继续算给你看; 真写入前必须先切到正确的时间线)")
+        return True
+
+    log("    ✗ 已中止, 未写入任何内容, 时间线保持原样。")
+    log("      切到正确的时间线后重跑; 确认就是这条请加 --ignore-tl-mismatch。")
+    return False
 
 
 def offline_audit(draft_dir, fps=None, allow_bottom=False, log=print):
@@ -149,7 +245,8 @@ def offline_audit(draft_dir, fps=None, allow_bottom=False, log=print):
 
 
 def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
-        allow_bottom=False, fix_shell=False, fps=None, log=print):
+        allow_bottom=False, fix_shell=False, fps=None,
+        ignore_tl_mismatch=False, log=print):
     """依次执行; go=False 时全部只读预演。
 
     返回 dict: {"ok": bool, "steps": {name: {...}}, "saved": bool}
@@ -168,7 +265,7 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
     r, proj, tl = conn
 
     tl_fps = _tl_fps(tl)
-    draft_fps = _draft_fps(draft_dir, tl_fps)
+    draft_fps, draft_frames = _draft_info(draft_dir, tl_fps)
     try:
         log("时间线: %s  %.3gfps  %d 帧 (起点 %d)"
             % (tl.GetName(), tl_fps, tl.GetEndFrame(), tl.GetStartFrame()))
@@ -177,6 +274,11 @@ def run(draft_dir, go=False, steps=("trans", "fades", "masks"),
     log("草稿帧率: %.3g  时间线帧率: %.3g" % (draft_fps, tl_fps))
     if abs(draft_fps - tl_fps) > 0.01:
         log("  ! 两者不一致, 帧位按草稿帧率折算到时间线(convert 也是这么做的)")
+
+    # 落位校验: 激活的不是这条时间线时, 后面每一步都会「成功」地写到错的地方
+    if not _check_timeline(proj, tl, draft_frames, go,
+                           ignore=ignore_tl_mismatch, log=log):
+        return {"ok": False, "steps": {}, "saved": False, "aborted": "timeline"}
 
     out = {"ok": True, "steps": {}, "saved": False}
     seq = 0          # 执行序号: --only 传参顺序与执行顺序无关, 编号要按实际执行

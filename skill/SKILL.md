@@ -92,6 +92,8 @@ python scripts/nb.py fix-shell -i "<草稿目录>"       # 清空壳 comp（先�
 ```
 一律先预演再 `--go`。视频淡变只用交叉叠化（`SetFades` 对视频不持久化）。
 
+**`post` 开跑前会自己核对时间线**：拿当前激活时间线的帧数（`GetEndFrame-GetStartFrame`）和草稿总帧比，差在 0.5% 以内才放行。对不上时会把工程里所有时间线连帧数列出来、标出「帧数对得上，多半是这条」，`--go` 直接中止且不写任何东西。这一步防的是「同源时间线有好几条（初版 / 精剪版 / 只含部分段落的试验版），激活错了帧号全偏移、而 `AddTransition` 照样返回成功」这种零报错的错位。确实就是这条时加 `--ignore-tl-mismatch` 强行过。
+
 转场走 21.1+ 的 `AddTransition`，不重导 fcpxml。映射：叠化→`Cross Dissolve`、
 闪白→`Brightness Flash`、闪黑→`Inverse Flash`、推镜变焦→`BCC+交叉变焦溶解`、
 放射→`BCC+光线溶解`、炫光→`BCC+镜头光晕溶解`；未识别的进人工清单，不猜。
@@ -122,7 +124,7 @@ skip: 69 段带蒙版但不处理(不建 comp, 不留空壳)
 3. 删任何视频段必须同删链接音频（否则占位，后续放置静默失败）
 4. `AddFusionComp` 返回 None → 轮询 `SaveProject` 约 60 秒，**不要重启**；注意保存要用 `pm.SaveProject()`，本机 `proj.SaveProject` 是 None 属性（坑 22）
 5. `AppendToTimeline` 返回 ok **不算成功**，必须回读确认片段真的落上了
-6. 没打开目标时间线时不许跑 `post` / `fades` / `masks`；先确认工程名与总帧数
+6. 没打开目标时间线时不许跑 `post` / `fades` / `masks`；`post` 会自己校验帧数（差 0.5% 以上、`--go` 直接拒跑），但预演仍会照算，别把预演数字当成"已经对了"
 
 ## 套蒙版前的两条否决（2026-11-18 新增）
 
