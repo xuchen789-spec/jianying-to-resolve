@@ -10,8 +10,10 @@ assignees: ''
 
 - [ ] `convert`（生成 fcpxml / xml / 剪映草稿）
 - [ ] 导入达芬奇（FCPXML 导入报错或结构不对）
-- [ ] `fades`（淡变写回）
-- [ ] `masks`（蒙版 / 文字 / 抠像写回）
+- [ ] `post`（转场 + 淡变 + 蒙版，一次做完）
+- [ ] `fades`（淡变写回，单独跑）
+- [ ] `masks`（蒙版 / 文字 / 抠像写回，单独跑）
+- [ ] `trans`（转场写回，单独跑）
 - [ ] `fix-shell`（清空壳 comp）
 - [ ] 安装 / 自检（`install_skill.py`、`preflight.py`）
 

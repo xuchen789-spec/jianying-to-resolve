@@ -16,7 +16,7 @@ agent_created: true
 
 - 允许的动作只有两种：**照草稿写**，或**因为草稿字段/结果约束而明确跳过并汇报**。
 - 禁止的动作是"补齐"：草稿里没有的一律不加 —— 不补黑头、不补空层、不凭感觉套蒙版、不发明转场、不加调色。
-- **别把这一条和 `fades` / `masks` 搞混。** 草稿里**确实存在**的淡变与蒙版，必须由这两个命令忠实还原 —— 那是复现，不是"补"。禁止的是"草稿没写、但你觉得应该有"。
+- **别把这一条和 `post` / `fades` / `masks` 搞混。** 草稿里**确实存在**的转场、淡变与蒙版，必须由这些命令忠实还原 —— 那是复现，不是"补"。禁止的是"草稿没写、但你觉得应该有"。
 - 任何跳过都必须**能说出理由并打印出来**，不许静默省略 —— 静默省略会让用户以为转好了。
 - 判据只能来自两处：① 草稿字段（如 `enable_video_mask is False`）；② 结果约束（如"最底层套蒙版必露黑"）。**不许来自"我觉得这里应该有"**。
 - 当两条冲突（草稿像是要蒙版，但套上去必然出黑），**默认按结果约束跳过，把选择权交回用户**，并给出显式的强制开关（`--allow-bottom`）。
@@ -71,22 +71,35 @@ python tools/audit_inpoint.py -i "<草稿目录>"
 ```
 不要直接去看成片。这一步才告诉你有没有段被倍速吞了入点。
 
-### ⑤ 还原淡变、转场与蒙版（在线写回）
+### ⑤ 还原转场、淡变与蒙版（在线写回）
 ```bash
-python scripts/nb.py fades -i "<草稿目录>" --audit   # 先只读对账
-python scripts/nb.py fades -i "<草稿目录>"           # 再写
-python scripts/nb.py trans -i "<草稿目录>" --audit   # 转场：离线看计划（挂宿主尾部）
-python scripts/nb.py trans -i "<草稿目录>" --go      # 转场：写入（先不带 --go 预演一次）
-python <root>/tools/mask_report.py -i "<草稿目录>"   # 套蒙版前：先看清单
-python scripts/nb.py masks -i "<草稿目录>"           # 蒙版 / 文字 / 抠像
-python scripts/nb.py fix-shell -i "<草稿目录>"       # 历史工程清空壳 comp（先预演）
+python scripts/nb.py post -i "<草稿目录>" --audit    # ① 离线：只数数量，不用开达芬奇
+python scripts/nb.py post -i "<草稿目录>"            # ② 在线预演：逐条对账，不写入
+python scripts/nb.py post -i "<草稿目录>" --go       # ③ 写入并保存
 ```
-一律先 `--audit` 再写。视频淡变只用交叉叠化（`SetFades` 对视频不持久化）。
+`post` 按 **转场 → 淡变 → 蒙版** 依次执行，一条命令做完，不会漏。顺序有讲究：
+转场先占位（淡变的画面渐显也是 `Cross Dissolve`，会读已有转场避让）；蒙版最后建 comp；
+`--fix-shell` 必须最前（它删段重放，会丢掉已挂的转场与 comp）。
+
+单独跑某几步用 `--only`，例如 `--only fades,masks`、`--only trans`。
+历史工程要清空壳加 `--fix-shell`：
+
+```bash
+python scripts/nb.py fades -i "<草稿目录>" --audit   # 也可以单跑，参数同上
+python scripts/nb.py masks -i "<草稿目录>" --allow-bottom
+python <root>/tools/mask_report.py -i "<草稿目录>"   # 套蒙版前先看清单
+python scripts/nb.py fix-shell -i "<草稿目录>"       # 清空壳 comp（先预演）
+```
+一律先预演再 `--go`。视频淡变只用交叉叠化（`SetFades` 对视频不持久化）。
 
 转场走 21.1+ 的 `AddTransition`，不重导 fcpxml。映射：叠化→`Cross Dissolve`、
 闪白→`Brightness Flash`、闪黑→`Inverse Flash`、推镜变焦→`BCC+交叉变焦溶解`、
 放射→`BCC+光线溶解`、炫光→`BCC+镜头光晕溶解`；未识别的进人工清单，不猜。
 入口段没有余量（`source.start=0`，含静帧）时自动退 `left`，否则 API 静默返回 `None`。
+
+**这三样一直是"分开的在线命令"，不是 `convert` 漏做** —— `convert` 只产出离线文件，
+不需要达芬奇；转场/淡变/蒙版必须对着已打开的时间线写。以前要手动连跑三条，漏一条
+时间线上就少一样。现在一律用 `post`，别分三次手工敲。
 
 `masks` 开跑会先打印计划与跳过统计：
 
@@ -109,7 +122,7 @@ skip: 69 段带蒙版但不处理(不建 comp, 不留空壳)
 3. 删任何视频段必须同删链接音频（否则占位，后续放置静默失败）
 4. `AddFusionComp` 返回 None → 轮询 `SaveProject` 约 60 秒，**不要重启**；注意保存要用 `pm.SaveProject()`，本机 `proj.SaveProject` 是 None 属性（坑 22）
 5. `AppendToTimeline` 返回 ok **不算成功**，必须回读确认片段真的落上了
-6. 没打开目标时间线时不许跑 `fades` / `masks`；先确认工程名与总帧数
+6. 没打开目标时间线时不许跑 `post` / `fades` / `masks`；先确认工程名与总帧数
 
 ## 套蒙版前的两条否决（2026-11-18 新增）
 

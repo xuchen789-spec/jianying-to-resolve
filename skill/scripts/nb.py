@@ -3,8 +3,10 @@
 
     python scripts/nb.py inspect -i "<草稿目录>"
     python scripts/nb.py convert -i "<草稿目录>" -t resolve -o <输出目录>
+    python scripts/nb.py post    -i "<草稿目录>" [--audit|--go]   # 转场+淡变+蒙版一次做完
     python scripts/nb.py fades   -i "<草稿目录>" [--audit]
     python scripts/nb.py masks   -i "<草稿目录>" [--audit]
+    python scripts/nb.py trans   -i "<草稿目录>" [--audit|--go]
     python scripts/nb.py fix-shell -i "<草稿目录>" [--go]
 
 等价于在源码仓库里直接跑 `python cli.py ...`，只是自动定位仓库路径。

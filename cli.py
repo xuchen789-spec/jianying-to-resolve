@@ -124,7 +124,39 @@ def main():
     p_tr.add_argument("--fps", type=int, default=None,
                       help="草稿帧率(默认取达芬奇时间线帧率; --audit 时默认 24)")
 
+    p_post = sub.add_parser("post",
+                            help="导入达芬奇后一次做完: 转场 -> 淡变 -> 蒙版(默认只预演)")
+    p_post.add_argument("-i", "--input", required=True, help="剪映草稿目录(唯一事实源)")
+    p_post.add_argument("--go", action="store_true", help="执行(默认只预演, 不动时间线)")
+    p_post.add_argument("--audit", action="store_true",
+                        help="纯离线: 只从草稿数出转场/淡变/蒙版各有多少, 不连达芬奇")
+    p_post.add_argument("--only", default="trans,fades,masks",
+                        help="只跑其中几步, 逗号分隔, 顺序仍按 转场->淡变->蒙版 "
+                             "(默认全部; 例: --only fades,masks)")
+    p_post.add_argument("--allow-bottom", action="store_true",
+                        help="蒙版忠实模式: 最底层也照草稿套(默认跳过)")
+    p_post.add_argument("--fix-shell", action="store_true",
+                        help="开头先清掉历史空壳 comp(会删段重放, 必须最先)")
+    p_post.add_argument("--fps", type=int, default=None,
+                        help="草稿帧率(默认自动推断, 与 convert 一致)")
+
     a = ap.parse_args()
+
+    if a.cmd == "post":
+        from nlebridge import postsync
+        if a.audit:
+            postsync.offline_audit(a.input, fps=a.fps,
+                                   allow_bottom=bool(a.allow_bottom), log=print)
+            sys.exit(0)
+        steps = [s.strip() for s in (a.only or "").split(",") if s.strip()]
+        bad = [s for s in steps if s not in ("trans", "fades", "masks")]
+        if bad:
+            print("未知步骤: %s (可选 trans / fades / masks)" % ", ".join(bad))
+            sys.exit(2)
+        res = postsync.run(a.input, go=bool(a.go), steps=steps,
+                           allow_bottom=bool(a.allow_bottom),
+                           fix_shell=bool(a.fix_shell), fps=a.fps, log=print)
+        sys.exit(0 if res["ok"] else 1)
 
     if a.cmd == "trans":
         from nlebridge import transsync
@@ -175,8 +207,6 @@ def main():
         ok, fail, _ = masklive.run(a.input, audit_only=bool(a.audit), log=print,
                                    allow_bottom=bool(getattr(a, "allow_bottom", False)))
         sys.exit(0 if fail == 0 else 1)
-
-    a = ap.parse_args()
 
     if a.cmd == "doctor":
         run_doctor(a)
@@ -232,9 +262,10 @@ def main():
         # (含声音淡变 + 画面叠化 + 无声片段的声音淡变)
         n_fade = len(nb.lua_post.fade_entries(tl))
         p_lua = nb.lua_post.generate(tl, os.path.join(out_dir, f"{base}_postimport.lua"))
-        print("[ok]", p_lua, f"(淡变 {n_fade} 处, 含画面渐显/渐隐; 达芬奇 工作区>脚本>Utility 里点一下即可,"
-              " 或 21.1+ 直接: python cli.py fades -i <源>)")
-        print("     导入后在达芬奇里另存, 然后跑: python cli.py fades -i <源> --audit  全量对账")
+        print("[ok]", p_lua, f"(淡变 {n_fade} 处, 含画面渐显/渐隐; 老路: 工作区>脚本>Utility 里点一下)")
+        print("     导入达芬奇并打开目标时间线后, 一条命令做完 转场/淡变/蒙版:")
+        print(f"       python cli.py post -i \"{a.input}\"          # 预演")
+        print(f"       python cli.py post -i \"{a.input}\" --go     # 写入")
     elif a.to == "pr":
         n_fade = sum(1 for t in tl.tracks for c in t.clips if c.fade_in or c.fade_out)
         if n_fade:

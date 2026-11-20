@@ -78,9 +78,18 @@ python cli.py convert -i "某序列.xml" -t resolve -o out
 # Premiere / 达芬奇 → 剪映（反向）
 python cli.py convert -i "某序列.xml" -t jianying -o out
 
+# 导入达芬奇、打开目标时间线后：转场 + 淡变 + 蒙版 一次做完
+python cli.py post -i "D:/剪映草稿/某工程" --audit   # 离线：只数数量，不用开达芬奇
+python cli.py post -i "D:/剪映草稿/某工程"           # 预演：逐条对账，不写入
+python cli.py post -i "D:/剪映草稿/某工程" --go      # 写入并保存
+
 # 导入达芬奇后核对"到底进去了什么"（读工程库, 只读）
 python cli.py doctor -p 示例工程 -i "D:/剪映草稿/某工程"
 ```
+
+`post` 固定按 **转场 → 淡变 → 蒙版** 执行，一条命令做完，不用记三条命令也不会漏。
+顺序会影响结果：淡变的画面渐显同样是 `Cross Dissolve`，先跑转场能保住该上 BCC+ 的切点。
+只想跑其中几步用 `--only fades,masks`；历史工程要清空壳加 `--fix-shell`（必须最先）。
 
 输出：
 
@@ -123,7 +132,7 @@ python tools/sync_skill.py --check    # 只检查，有差异返回 1
 
 用起来发现不对，两条路都行：
 
-**报 bug** — 直接开 Issue。模板会问：卡在哪一步（`convert` / 导入达芬奇 / `fades` / `masks` / `fix-shell`）、
+**报 bug** — 直接开 Issue。模板会问：卡在哪一步（`convert` / 导入达芬奇 / `post` / `fades` / `masks` / `trans` / `fix-shell`）、
 剪映与达芬奇版本、完整命令、报错原文、转换报告里相关的几行、期望什么样实际什么样。
 能附一个最小复现（3 秒、两三条轨的草稿）最好定位。
 
@@ -150,8 +159,8 @@ MIT，见 `LICENSE`。使用前请确认：你转换的工程是**你自己拥�
 | 镜像 | `clip.flip` | 负缩放 | 负 `scale` |
 | 关键帧 | `common_keyframes` | `<parameter><keyframe>` | `<param><keyframeAnimation><keyframe>` |
 | 音量 | `volume` | audiolevels（dB） | `audioVolume` |
-| 淡入淡出 | `audio_fades` | 报告提示（XML 无标准表示） | `audioFadeIn/Out` |
-| 转场 | `materials.transitions`（挂宿主**尾部**） | 报告提示 | 在线 `AddTransition`（`cli.py trans`）：叠化/闪白/闪黑用自带，推镜/放射/炫光走 BCC+；FCPXML 里只能写纯叠化/闪黑 |
+| 淡入淡出 | `audio_fades` + 画面 `vfade` | 报告提示（XML 无标准表示） | `audioFadeIn/Out`；画面渐显靠在线 `Cross Dissolve`（`cli.py post`） |
+| 转场 | `materials.transitions`（挂宿主**尾部**） | 报告提示 | 在线 `AddTransition`（`cli.py post` / `trans`）：叠化/闪白/闪黑用自带，推镜/放射/炫光走 BCC+；FCPXML 里只能写纯叠化/闪黑 |
 | 轨道层级 | 轨序 + render_index | 独立 `<track>` | `lane`（音频负 lane） |
 | 一级调色参数 | `materials.effects`（value） | `<note>` 备注 | XML 注释 |
 | 文本 | `materials.texts` | SRT 字幕 | SRT 字幕 |
