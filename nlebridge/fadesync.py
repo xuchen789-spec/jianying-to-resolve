@@ -89,6 +89,7 @@ def sync(tl_src, audit_only=False, log=print):
 
     idx = {}
     trans = {}                     # (轨类型, 轨号, start, end) -> 转场 item
+    fb = {}                        # (轨类型, start) -> [(轨号, item)] 轨号错位时的退路
     for tt, n, it in _iter_timeline(tl):
         try:
             is_trans = it.GetType() == "transition"
@@ -98,6 +99,7 @@ def sync(tl_src, audit_only=False, log=print):
             trans[(tt, n, int(it.GetStart()), int(it.GetEnd()))] = it
         else:
             idx[(tt, n, int(it.GetStart()))] = it
+            fb.setdefault((tt, int(it.GetStart())), []).append((n, it))
     log(f"时间线片段总数: {len(idx)}  (另有转场 {len(trans)} 个)")
 
     def _video_trans_match(key, fi, fo):
@@ -124,9 +126,17 @@ def sync(tl_src, audit_only=False, log=print):
     for key, (fi, fo) in sorted(exp.items()):
         it = idx.get(key)
         if it is None:
-            log(f"  ✗ 未找到 {key[0]}{key[1]} @{key[2]}")
-            fail += 1
-            continue
+            # 轨号错位: 草稿里只有 1 段的短音轨转换时可能被并进别的轨,
+            # 使后续轨整体前移。退化为「同起点、轨号最接近」匹配。
+            cands = fb.get((key[0], key[2])) or []
+            if cands:
+                n2, it2 = min(cands, key=lambda x: abs(x[0] - key[1]))
+                it = it2
+                log(f"  · 轨号校正 {key[0]}{key[1]}@{key[2]} -> {key[0]}{n2}")
+            else:
+                log(f"  ✗ 未找到 {key[0]}{key[1]} @{key[2]}")
+                fail += 1
+                continue
         if key[0] == "video":
             # ⚠️ 达芬奇 21.1 的 SetFades 对视频片段不持久化(保存工程后丢失,
             # 2026-11-16 实测), 画面渐显/渐隐一律用 Cross Dissolve 转场。
